@@ -1,4 +1,3 @@
-# Core dependencies
 openai
 google-generativeai
 elevenlabs
@@ -8,3 +7,5 @@ Pillow
 python-dotenv
 requests
 ffmpeg-python
+google-api-python-client
+google-auth-oauthlib

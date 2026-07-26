@@ -1,0 +1,35 @@
+# Environment
+.env
+*.env
+*.key
+*.pem
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+venv/
+.venv/
+env/
+
+# Temporary files
+temp/
+*.tmp
+*.mp4
+*.mp3
+*.jpg
+*.png
+
+# Logs
+logs/
+*.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
