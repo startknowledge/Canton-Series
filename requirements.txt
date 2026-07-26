@@ -1,0 +1,10 @@
+# Core dependencies
+openai
+google-generativeai
+elevenlabs
+pexels-api
+moviepy
+Pillow
+python-dotenv
+requests
+ffmpeg-python
