@@ -1,62 +1,63 @@
 from flask import Flask, request, jsonify
 import subprocess
 import os
-import json
 import hmac
 import hashlib
 
 app = Flask(__name__)
 
-# 🔐 यहाँ अपना Secret डालें (बिल्कुल वही जो GitHub पर डाला है)
+# 🛡️ अपनी Secret Key यहाँ डालें (GitHub Secret से match karna hoga)
 SECRET = "MySuperSecret749"
+VERIFY_SIGNATURE = False
 
 @app.route('/webhook', methods=['POST'])
 def handle_webhook():
-    # 1. चेक करें कि यह Push Event तो है?
+    print("=" * 50)
+    print("🔔 GitHub Webhook Request Received!")
+    
     event = request.headers.get('X-GitHub-Event')
+    print(f"🚀 Event Type: {event}")
+    
+    if event == 'ping':
+        return jsonify({"message": "Webhook received successfully! Pong!"}), 200
+        
     if event != 'push':
-        return jsonify({"message": "Ignored, not a push event"}), 200
+        print("⏭️ Ignoring non-push event.")
+        return jsonify({"message": "Ignored"}), 200
 
-    # 2. 🔐 GitHub Signature Verify करें (सुरक्षा के लिए)
-    signature_header = request.headers.get('X-Hub-Signature-256')
-    if not signature_header:
-        return 'Signature missing', 401
-    
-    # अपना खुद का Signature Calculate करें
-    payload = request.get_data()  # Raw Body (Bytes)
-    expected_signature = 'sha256=' + hmac.new(
-        SECRET.encode('utf-8'),
-        payload,
-        hashlib.sha256
-    ).hexdigest()
-    
-    # दोनों Signatures Compare करें (Timing Attack से बचने के लिए hmac.compare_digest use करें)
-    if not hmac.compare_digest(expected_signature, signature_header):
-        return 'Invalid signature', 401
+    if VERIFY_SIGNATURE:
+        print("🔒 Verifying Signature...")
+        signature_header = request.headers.get('X-Hub-Signature-256')
+        if not signature_header:
+            print("❌ Signature missing!")
+            return 'Signature missing', 401
+        payload = request.get_data()
+        expected_signature = 'sha256=' + hmac.new(
+            SECRET.encode('utf-8'),
+            payload,
+            hashlib.sha256
+        ).hexdigest()
+        if not hmac.compare_digest(expected_signature, signature_header):
+            print("❌ Invalid Signature!")
+            return 'Invalid signature', 401
+        print("✅ Signature Verified Successfully!")
 
-    print("✅ GitHub Push received and Verified! Running auto_deploy.sh...")
-    
-    try:
-        # 3. आपकी auto_deploy.sh Script को Call करें
-        result = subprocess.run(
-            ['/home/ubuntu/auto_deploy.sh'], 
-            capture_output=True, 
-            text=True,
-            timeout=300  # 5 मिनट का Timeout
-        )
-        
-        print("STDOUT:", result.stdout)
-        print("STDERR:", result.stderr)
-        
-        return jsonify({"status": "Deploy triggered successfully!"}), 200
-        
-    except Exception as e:
-        print("❌ Error running script:", str(e))
-        return jsonify({"status": "Failed", "error": str(e)}), 500
+    script_path = "/home/ubuntu/auto_deploy.sh"
+    if not os.path.exists(script_path):
+        print(f"❌ ERROR: Script not found at {script_path}")
+        return jsonify({"error": "Script not found"}), 500
+    else:
+        print(f"✅ Script found at {script_path}")
+
+    print("🚀 Executing script in background...")
+    # Background में script चलाएं, ताकि Flask तुरंत Response भेज दे
+    subprocess.Popen(["/bin/bash", script_path], start_new_session=True)
+
+    return jsonify({"status": "Deploy triggered in background"}), 200
 
 @app.route('/health', methods=['GET'])
 def health_check():
-    return "Webhook Server is Running with SECURE Signature!", 200
+    return "✅ Webhook Server is Running!", 200
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=False)

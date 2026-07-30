@@ -8,17 +8,15 @@ services:
     restart: always
     ports:
       - "5678:5678"
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
     environment:
       - N8N_BASIC_AUTH_ACTIVE=true
       - N8N_BASIC_AUTH_USER=admin
       - N8N_BASIC_AUTH_PASSWORD=Summan4482749#
       - N8N_ENCRYPTION_KEY=your_32_char_encryption_key_here
-      - N8N_HOST=n8n.startknowledge.in
+      - N8N_HOST=your-domain.com
       - N8N_PORT=5678
       - N8N_PROTOCOL=https
-      - N8N_WEBHOOK_URL=https://n8n.startknowledge.in/
+      - WEBHOOK_URL=https://your-domain.com/
       - N8N_METRICS=true
       - N8N_METRICS_INCLUDE_DEFAULT_METRICS=true
       - EXECUTIONS_DATA_PRUNE=true
@@ -56,14 +54,14 @@ services:
     restart: always
     command: tunnel --no-autoupdate run --token $${CLOUDFLARE_TUNNEL_TOKEN}
     environment:
-      - CLOUDFLARE_TUNNEL_TOKEN=eyJhIjoiNGNiYTkxNTY0MDIwYjFjMWVkNTM5YmI4ZWFhN2YyZWMiLCJ0IjoiZmI3ZjUwNTItZTAzYS00ZmViLTlkODUtZTMxMDQ4YjJkNTM4IiwicyI6Ik5HVXlOakkyTXpBdFlqVTRNaTAwWW1aaUxUazFNemN0TnpGaFltUmxNbVk1TUdObSJ9
+      - CLOUDFLARE_TUNNEL_TOKEN=eyJhIjoiNGNiYTkxNTY0MDIwYjFjMWVkNTM5YmI4ZWFhN2YyZWMiLCJ0IjoiZmI3ZjUwNTItZTAzYS00ZmViLTlkODUtZTMxMDQ4YjJkNTM4IiwicyI6IlpqUmtZelF5TkdVdFpHTTVOQzAwTWpBekxUa3labVl0Wmpkak9UVmxNRGN6TVRneVpESmpZV1E1Tm1FdFlUVTJNQzAwWkdNNExUZzNZelF0TmpFM1lqSmpPRFZrTnpRMCJ9
 
     networks:
       - canton-network
 
 networks:
   canton-network:
-    driver: bridge
+idge
 
 volumes:
   postgres-data:

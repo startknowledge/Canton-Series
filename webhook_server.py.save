@@ -1,0 +1,108 @@
+from flask import Flask, request, jsonify
+import subprocess
+import os
+import hmac
+import hashlib
+
+app = Flask(__name__)
+
+SECRET = "MySuperSecret749"
+VERIFY_SIGNATURE = False
+
+def handle_webhook():
+    print("=" * 50)
+    print("🔔 GitHub Webhook Request Received!")
+
+    event = request.headers.get('X-GitHub-Event')
+    print(f"📌 Event Type: {event}")
+    ubuntu@startknowledge-server-vnic:~/canton-series/Canton-Series$ docker logs canton-n8n
+Initializing n8n process
+n8n ready on ::, port 5678
+n8n Task Broker ready on 127.0.0.1, port 5679
+Failed to start Python task runner in internal mode. because Python 3 is missing from this system. Launching a Python runner in internal mode is intended only for debugging and is not recommended for production. Users are encouraged to deploy in external mode. See: https://docs.n8n.io/hosting/configuration/task-runners/#setting-up-external-mode
+
+There are deprecations related to your n8n setup. Please take the recommended actions to update your configuration:
+ - WEBHOOK_URL -> Use N8N_WEBHOOK_URL instead, which sets the base URL for both test and production webhooks.
+ - N8N_UNVERIFIED_PACKAGES_ENABLED -> The default for this variable will change to `false` in a future version. Set it to `true` explicitly to keep installing unverified community packages.
+ - N8N_RUNNERS_TASK_TIMEOUT -> The default for this variable will be reduced from 300 (5 minutes) to 60 (1 minute) in a future version. Set it explicitly to keep your current task timeout.
+ - N8N_COMPRESSION_NODE_MAX_DECOMPRESSED_SIZE_BYTES -> The default for this variable will be reduced from 2 GiB to 256 MiB in a future version. Set it explicitly to keep your current limit.
+ - N8N_COMPRESSION_NODE_MAX_ZIP_ENTRIES -> The default for this variable will be reduced from 5000 to 1000 in a future version. Set it explicitly to keep your current limit.
+
+[license SDK] cert state: expiresAt=2026-08-08T17:24:46.997Z terminatesAt=2051-07-23T17:24:46.997Z issuedAt=2026-07-29T17:24:47.144Z msToExpiry=820169841 msToTermination=788356169841 isValid=true isRenewalDue=false detachedEntitlementsCount=0 entitlements=1 enabledFeatures=6
+[license SDK] Skipping renewal on init: license cert is not due for renewal
+Database ping failed (1): Database connection timed out
+Task runner connection attempt failed: invalid or expired grant token. If the runner startup exceeds grant token TTL 30s, increase N8N_RUNNERS_GRANT_TOKEN_TTL
+Database ping failed (2): Database connection timed out
+[runnner:js] Error: Failed to connect to n8n task broker at 127.0.0.1:5679
+Details: Unexpected server response: 403
+Database ping failed (3): Database connection timed out
+Database connection recovered
+Task runner connection attempt failed: invalid or expired grant token. If the runner startup exceeds grant token TTL 30s, increase N8N_RUNNERS_GRANT_TOKEN_TTL
+[runnner:js] Error: Failed to connect to n8n task broker at 127.0.0.1:5679
+Details: Unexpected server response: 403
+Instance registered
+Discovered 4 cluster checks
+Task runner connection attempt failed: invalid or expired grant token. If the runner startup exceeds grant token TTL 30s, increase N8N_RUNNERS_GRANT_TOKEN_TTL
+[runnner:js] Error: Failed to connect to n8n task broker at 127.0.0.1:5679
+Details: Unexpected server response: 403
+Version: 2.32.6
+Building workflow dependency index...
+Finished building workflow dependency index. Processed 0 draft workflows, 0 published workflows.
+
+Editor is now accessible via:
+https://n8n.startknowledge.in
+Registered runner "JS Task Runner" (nGAFb-aUQCtlApMt46ZSi) event != 'push':
+        print("⏭️ Ignoring non-push event.")
+        return jsonify({"message": "Ignored"}), 200
+
+    if VERIFY_SIGNATURE:
+        print("🔐 Verifying Signature...")
+        signature_header = request.headers.get('X-Hub-Signature-256')
+        if not signature_header:
+            print("❌ Signature missing!")
+            return 'Signature missing', 401
+        payload = request.get_data()
+        expected_signature = 'sha256=' + hmac.new(
+            SECRET.encode('utf-8'),
+            payload,
+            hashlib.sha256
+        ).hexdigest()
+        if not hmac.compare_digest(expected_signature, signature_header):
+            print("❌ Invalid Signature!")
+            return 'Invalid signature', 401
+        print("✅ Signature Verified Successfully!")
+
+    script_path = "/home/ubuntu/auto_deploy.sh"
+    if not os.path.exists(script_path):
+        print(f"❌ ERROR: Script not found at {script_path}")
+        return jsonify({"error": "Script not found"}), 500
+    else:
+        print(f"✅ Script found at {script_path}")
+
+    print("🚀 Executing script...")
+    try:
+        result = subprocess.run(
+            [script_path],
+            capture_output=True,
+            text=True,
+            timeout=120
+        )
+        print("✅ STDOUT (Success Logs):")
+        print(result.stdout)
+        if result.stderr:
+            print("⚠️ STDERR (Error Logs):")
+            print(result.stderr)
+        return jsonify({"status": "Deploy triggered successfully!"}), 200
+    except subprocess.TimeoutExpired:
+        print("⏰ Script timed out after 120 seconds.")
+        return jsonify({"error": "Script timed out"}), 500
+    except Exception as e:
+        print(f"🔥 Unexpected Exception: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/health', methods=['GET'])
+def health_check():
+    return "✅ Webhook Server is Running!", 200
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000, debug=False)
