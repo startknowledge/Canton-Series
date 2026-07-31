@@ -62,22 +62,27 @@ class YouTubeUploader:
                     logger.warning(f"Could not refresh token: {e}")
                     credentials = None
             
-            if not credentials:
-                # Need to get new credentials via OAuth flow
-                logger.info("Getting new YouTube OAuth credentials...")
-                flow = InstalledAppFlow.from_client_config(
-                    {
-                        "installed": {
-                            "client_id": self.client_id,
-                            "client_secret": self.client_secret,
-                            "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-                            "token_uri": "https://oauth2.googleapis.com/token"
-                        }
-                    },
-                    SCOPES
-                )
-                credentials = flow.run_local_server(port=8080)
-                logger.info("YouTube OAuth complete")
+                    if not credentials:
+                        # Need to get new credentials via OAuth flow
+                        logger.info("Getting new YouTube OAuth credentials...")
+                        flow = InstalledAppFlow.from_client_config(
+                            {
+                                "installed": {
+                                    "client_id": self.client_id,
+                                    "client_secret": self.client_secret,
+                                    "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+                                    "token_uri": "https://oauth2.googleapis.com/token"
+                                }
+                            },
+                            SCOPES
+                        )
+                        # Manual authentication (Headless server ke liye)
+                        auth_url, _ = flow.authorization_url(prompt='consent')
+                        print(f"\n\nPlease go to this URL to authorize:\n{auth_url}\n")
+                        code = input("Enter the authorization code: ")
+                        flow.fetch_token(code=code)
+                        credentials = flow.credentials
+                        logger.info("YouTube OAuth complete")
             
             # Save credentials for next time
             with open(self.token_file, 'wb') as token:
