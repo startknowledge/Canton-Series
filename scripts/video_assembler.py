@@ -20,12 +20,7 @@ def assemble_video_with_multiaudio(
     output_path = out_dir / output_filename
 
     # Step 1: Create a video without audio using FFmpeg (slideshow from images/videos)
-    # For simplicity, we'll use a Python script to create a slideshow with moviepy,
-    # then we'll add audio tracks with FFmpeg.
-    # Here we assume we already have a video file (without audio) or we build one.
-    # We'll use moviepy to create a video clip from media, but we need to separate audio.
-    # Approach: create a video with a silent audio track, then overlay multiple audio streams.
-    from moviepy.editor import ImageClip, VideoFileClip, concatenate_videoclips, CompositeVideoClip
+    from moviepy.editor import ImageClip, VideoFileClip, concatenate_videoclips
 
     # Build list of clips from media paths
     clips = []
@@ -54,22 +49,17 @@ def assemble_video_with_multiaudio(
     video_clip.write_videofile(str(temp_video), fps=VideoConfig.FPS, codec=VideoConfig.VIDEO_CODEC, audio_codec=None, verbose=False, logger=None)
 
     # Step 2: Use FFmpeg to add multiple audio streams
-    # Build command: -i video -i audio1 -i audio2 ... -map 0:v -map 1:a -map 2:a ... -c copy -metadata:s:a:0 language=eng ...
     cmd = ["ffmpeg", "-y", "-i", str(temp_video)]
     audio_paths = []
     for lang, path in audio_files.items():
         cmd.extend(["-i", str(path)])
         audio_paths.append((lang, path))
 
-    # Map video
     cmd.extend(["-map", "0:v"])
-    # Map each audio
     for i in range(len(audio_paths)):
         cmd.extend(["-map", f"{i+1}:a"])
 
-    # Set codec copy for video, encode audio with aac
     cmd.extend(["-c:v", "copy"])
-    # For each audio stream, set language metadata
     for i, (lang, _) in enumerate(audio_paths):
         cmd.extend([f"-metadata:s:a:{i}", f"language={lang}"])
 
@@ -78,9 +68,55 @@ def assemble_video_with_multiaudio(
     success = run_ffmpeg_command(cmd, "Adding multiple audio tracks")
     if success and output_path.exists():
         logger.info(f"Final video with {len(audio_paths)} audio tracks: {output_path}")
-        # Clean up temp
         if temp_video.exists():
             temp_video.unlink()
         return output_path
     else:
         raise RuntimeError("Failed to create multi-audio video")
+
+# ✅ FIX: Corrected split_and_upload_shorts function
+def split_and_upload_shorts(input_video: Path, uploader, title: str):
+    """
+    Split a video into 60-second vertical shorts and upload them.
+    input_video: Path to the main video file.
+    uploader: An instance of YouTubeUploader.
+    title: The title of the main video.
+    """
+    from pathlib import Path
+    import subprocess
+
+    duration = 60  # 1 minute per short
+    video_duration = 840  # 14 minutes total (adjust if your video changes)
+    shorts_uploaded = []
+
+    logger.info(f"Splitting video into shorts: {input_video}")
+    
+    for i in range(0, video_duration, duration):
+        start_time = i
+        part_num = i // duration + 1
+        output_name = f"short_part_{part_num}.mp4"
+        output_path = Path(TEMP_DIR / "videos" / output_name)
+
+        # Vertical crop (1080x1920) aur 60 sec cut
+        try:
+            subprocess.run([
+                "ffmpeg", "-y", "-i", str(input_video),
+                "-vf", "crop=in_w:in_w*9/16:0:(in_h-in_w*9/16)/2",
+                "-ss", str(start_time), "-t", str(duration),
+                "-c:v", "libx264", "-c:a", "aac", str(output_path)
+            ], check=True)
+            logger.info(f"Short created: {output_path}")
+            
+            # Short Upload karein
+            uploader.upload_video(
+                video_path=output_path,
+                title=f"{title[:50]} - Part {part_num} #shorts",
+                privacy_status="public", # Shorts humesha public better hai
+                description=f"Watch the full episode on our channel! Part {part_num} of the Canton Series."
+            )
+            shorts_uploaded.append(output_path)
+        except subprocess.CalledProcessError as e:
+            logger.error(f"Failed to generate short for part {part_num}: {e}")
+
+    logger.info(f"Uploaded {len(shorts_uploaded)} shorts.")
+    return shorts_uploaded
